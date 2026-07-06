@@ -1,7 +1,14 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
-import { AnimatePresence, motion, type Variants } from "framer-motion"
+import { useState, useCallback, useEffect, useRef, type ReactNode } from "react"
+import {
+  AnimatePresence,
+  motion,
+  useMotionValue,
+  useSpring,
+  useTransform,
+  type Variants,
+} from "framer-motion"
 import {
   Heart,
   Sparkles,
@@ -26,6 +33,7 @@ type YearEntry = {
   milestones: string[]
   Icon: typeof Heart
   glow: string
+  glow2: string
   transition: "scale" | "split" | "drift" | "unfold" | "swirl"
 }
 
@@ -36,6 +44,7 @@ const JOURNEY: YearEntry[] = [
     subtitle: "Where two worlds quietly collided",
     Icon: Sparkles,
     glow: "#f43f5e",
+    glow2: "#fb7185",
     transition: "scale",
     milestones: [
       "A first glance that lingered a heartbeat too long.",
@@ -49,6 +58,7 @@ const JOURNEY: YearEntry[] = [
     subtitle: "Two paths braided into one",
     Icon: Heart,
     glow: "#e11d48",
+    glow2: "#f43f5e",
     transition: "split",
     milestones: [
       "Our first adventure, hand in hand into the unknown.",
@@ -62,6 +72,7 @@ const JOURNEY: YearEntry[] = [
     subtitle: "Growing steady, growing true",
     Icon: Feather,
     glow: "#fb7185",
+    glow2: "#fda4af",
     transition: "drift",
     milestones: [
       "A home that finally felt like ours.",
@@ -75,6 +86,7 @@ const JOURNEY: YearEntry[] = [
     subtitle: "Dreaming louder, together",
     Icon: Sun,
     glow: "#fbbf24",
+    glow2: "#fcd34d",
     transition: "unfold",
     milestones: [
       "Chasing sunrises in places we'd only imagined.",
@@ -88,6 +100,7 @@ const JOURNEY: YearEntry[] = [
     subtitle: "A love that learned its own strength",
     Icon: Gem,
     glow: "#f43f5e",
+    glow2: "#fbbf24",
     transition: "swirl",
     milestones: [
       "Choosing each other again, and again, and again.",
@@ -201,17 +214,77 @@ const transitionVariants: Record<YearEntry["transition"], Variants> = {
 }
 
 const staggerContainer: Variants = {
-  animate: { transition: { staggerChildren: 0.18, delayChildren: 0.35 } },
+  animate: { transition: { staggerChildren: 0.16, delayChildren: 0.45 } },
 }
 
 const staggerItem: Variants = {
-  initial: { opacity: 0, y: 24, filter: "blur(6px)" },
+  initial: { opacity: 0, y: 28, scale: 0.96, filter: "blur(6px)" },
   animate: {
     opacity: 1,
     y: 0,
+    scale: 1,
     filter: "blur(0px)",
-    transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.85, ease: [0.22, 1, 0.36, 1] },
   },
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            MAGNETIC INTERACTION                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * MagneticButton — wraps its children and applies a subtle "magnetic pull"
+ * toward the cursor using spring physics, plus scale on hover.
+ */
+function MagneticButton({
+  children,
+  onClick,
+  className,
+  strength = 0.4,
+  ariaLabel,
+}: {
+  children: ReactNode
+  onClick?: () => void
+  className?: string
+  strength?: number
+  ariaLabel?: string
+}) {
+  const ref = useRef<HTMLButtonElement>(null)
+  const x = useMotionValue(0)
+  const y = useMotionValue(0)
+  const springX = useSpring(x, { stiffness: 220, damping: 18, mass: 0.4 })
+  const springY = useSpring(y, { stiffness: 220, damping: 18, mass: 0.4 })
+
+  const handleMove = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const el = ref.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const relX = e.clientX - (rect.left + rect.width / 2)
+    const relY = e.clientY - (rect.top + rect.height / 2)
+    x.set(relX * strength)
+    y.set(relY * strength)
+  }
+
+  const reset = () => {
+    x.set(0)
+    y.set(0)
+  }
+
+  return (
+    <motion.button
+      ref={ref}
+      onClick={onClick}
+      onMouseMove={handleMove}
+      onMouseLeave={reset}
+      style={{ x: springX, y: springY }}
+      whileHover={{ scale: 1.04 }}
+      whileTap={{ scale: 0.96 }}
+      aria-label={ariaLabel}
+      className={className}
+    >
+      {children}
+    </motion.button>
+  )
 }
 
 /* -------------------------------------------------------------------------- */
@@ -228,20 +301,20 @@ type Ember = {
   rise: number
 }
 
-function FloatingEmbers() {
+function FloatingEmbers({ color }: { color: string }) {
   // Generate randomized embers only on the client to avoid hydration mismatch.
   const [embers, setEmbers] = useState<Ember[]>([])
 
   useEffect(() => {
     setEmbers(
-      Array.from({ length: 22 }).map((_, i) => ({
+      Array.from({ length: 26 }).map((_, i) => ({
         id: i,
         left: Math.random() * 100,
         size: 2 + Math.random() * 4,
         delay: Math.random() * 8,
         duration: 9 + Math.random() * 9,
-        drift: (Math.random() - 0.5) * 80,
-        rise: 420 + Math.random() * 200,
+        drift: (Math.random() - 0.5) * 90,
+        rise: 420 + Math.random() * 220,
       })),
     )
   }, [])
@@ -257,9 +330,8 @@ function FloatingEmbers() {
             bottom: -20,
             width: e.size,
             height: e.size,
-            background:
-              "radial-gradient(circle, rgba(251,113,133,0.9) 0%, rgba(244,63,94,0.4) 60%, transparent 100%)",
-            boxShadow: "0 0 8px rgba(244,63,94,0.6)",
+            background: `radial-gradient(circle, ${color} 0%, ${color}66 55%, transparent 100%)`,
+            boxShadow: `0 0 8px ${color}99`,
           }}
           initial={{ opacity: 0, y: 0 }}
           animate={{
@@ -279,34 +351,85 @@ function FloatingEmbers() {
   )
 }
 
-function AmbientGlow({ color }: { color: string }) {
+/**
+ * AmbientGlow — layered radial glows that (a) softly shift/breathe on their own
+ * and (b) gently follow the cursor via spring physics for a "living" feel.
+ * Colors crossfade smoothly whenever the active year changes.
+ */
+function AmbientGlow({ color, color2 }: { color: string; color2: string }) {
+  const mx = useMotionValue(0.5)
+  const my = useMotionValue(0.35)
+  const sx = useSpring(mx, { stiffness: 40, damping: 20 })
+  const sy = useSpring(my, { stiffness: 40, damping: 20 })
+
+  useEffect(() => {
+    const handle = (e: MouseEvent) => {
+      mx.set(e.clientX / window.innerWidth)
+      my.set(e.clientY / window.innerHeight)
+    }
+    window.addEventListener("mousemove", handle)
+    return () => window.removeEventListener("mousemove", handle)
+  }, [mx, my])
+
+  const primaryLeft = useTransform(sx, (v) => `${25 + v * 50}%`)
+  const primaryTop = useTransform(sy, (v) => `${15 + v * 45}%`)
+  const secondaryLeft = useTransform(sx, (v) => `${70 - v * 40}%`)
+
   return (
-    <motion.div
-      aria-hidden
-      className="pointer-events-none absolute inset-0"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 1.4 }}
-    >
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* Primary glow — follows the cursor, crossfades with the active year */}
+      <AnimatePresence mode="popLayout">
+        <motion.div
+          key={color}
+          className="absolute h-[70vh] w-[70vh] -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{
+            left: primaryLeft,
+            top: primaryTop,
+            background: `radial-gradient(circle, ${color}55 0%, ${color}22 40%, transparent 70%)`,
+            filter: "blur(50px)",
+          }}
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: [1, 1.12, 1] }}
+          exit={{ opacity: 0, scale: 1.1 }}
+          transition={{
+            opacity: { duration: 1.6 },
+            scale: { duration: 9, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" },
+          }}
+        />
+      </AnimatePresence>
+
+      {/* Secondary accent glow */}
+      <AnimatePresence mode="popLayout">
+        <motion.div
+          key={color2}
+          className="absolute h-[46vh] w-[46vh] -translate-y-1/2 rounded-full"
+          style={{
+            left: secondaryLeft,
+            bottom: "6%",
+            background: `radial-gradient(circle, ${color2}40 0%, transparent 70%)`,
+            filter: "blur(60px)",
+          }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1, scale: [1.1, 1, 1.1] }}
+          exit={{ opacity: 0 }}
+          transition={{
+            opacity: { duration: 1.8 },
+            scale: { duration: 11, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" },
+          }}
+        />
+      </AnimatePresence>
+
+      {/* Static liquid-gold pool for warmth */}
       <motion.div
-        className="absolute left-1/2 top-1/3 h-[60vh] w-[60vh] -translate-x-1/2 -translate-y-1/2 rounded-full"
+        className="absolute left-[8%] top-[12%] h-[34vh] w-[34vh] rounded-full"
         style={{
-          background: `radial-gradient(circle, ${color}55 0%, transparent 70%)`,
-          filter: "blur(40px)",
+          background: "radial-gradient(circle, rgba(251,191,36,0.14) 0%, transparent 70%)",
+          filter: "blur(70px)",
         }}
-        animate={{ scale: [1, 1.15, 1], opacity: [0.6, 0.9, 0.6] }}
-        transition={{ duration: 8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+        animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
+        transition={{ duration: 13, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
       />
-      <motion.div
-        className="absolute right-[10%] bottom-[8%] h-[38vh] w-[38vh] rounded-full"
-        style={{
-          background: "radial-gradient(circle, rgba(251,191,36,0.25) 0%, transparent 70%)",
-          filter: "blur(50px)",
-        }}
-        animate={{ scale: [1.1, 1, 1.1], opacity: [0.4, 0.7, 0.4] }}
-        transition={{ duration: 10, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-      />
-    </motion.div>
+    </div>
   )
 }
 
@@ -371,22 +494,37 @@ function IntroScreen({ onStart }: { onStart: () => void }) {
         A cinematic journey through every heartbeat, every season, and every reason I would choose you all over again.
       </motion.p>
 
-      <motion.button
-        onClick={onStart}
+      <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.9, delay: 1.15 }}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.97 }}
-        className="group relative mt-12 inline-flex items-center gap-3 overflow-hidden rounded-full border border-rose-400/30 bg-rose-500/10 px-9 py-4 text-base font-medium text-rose-50 backdrop-blur-sm transition-colors hover:border-rose-300/60"
+        className="mt-12"
       >
-        <span
-          className="absolute inset-0 -z-10 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
-          style={{ background: "radial-gradient(circle at center, rgba(244,63,94,0.4), transparent 70%)" }}
-        />
-        Start Our Journey
-        <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
-      </motion.button>
+        <MagneticButton
+          onClick={onStart}
+          ariaLabel="Start Our Journey"
+          className="group relative inline-flex items-center gap-3 overflow-hidden rounded-full border border-rose-400/30 bg-rose-500/10 px-9 py-4 text-base font-medium text-rose-50 backdrop-blur-md transition-colors hover:border-rose-300/70"
+        >
+          {/* rotating conic glow border */}
+          <span
+            className="absolute -inset-px -z-10 rounded-full opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+            style={{ background: "radial-gradient(circle at center, rgba(244,63,94,0.45), transparent 70%)" }}
+          />
+          <span className="pointer-events-none absolute inset-0 -z-10 rounded-full">
+            <motion.span
+              className="absolute inset-0 rounded-full opacity-60"
+              style={{
+                background:
+                  "conic-gradient(from 0deg, transparent, rgba(244,63,94,0.6), transparent 40%, rgba(251,191,36,0.5), transparent 70%)",
+              }}
+              animate={{ rotate: 360 }}
+              transition={{ duration: 6, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+            />
+          </span>
+          Start Our Journey
+          <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
+        </MagneticButton>
+      </motion.div>
 
       <motion.div
         initial={{ opacity: 0 }}
@@ -399,6 +537,35 @@ function IntroScreen({ onStart }: { onStart: () => void }) {
         <Star className="h-3 w-3 text-amber-300/70" fill="currentColor" />
       </motion.div>
     </motion.section>
+  )
+}
+
+function MilestoneCard({ text, entry }: { text: string; entry: YearEntry }) {
+  return (
+    <motion.li
+      variants={staggerItem}
+      whileHover={{ scale: 1.02, x: 4 }}
+      transition={{ type: "spring", stiffness: 300, damping: 22 }}
+      className="group relative flex items-start gap-4 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-4 text-left backdrop-blur-xl"
+    >
+      {/* glowing border sweep on hover */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+        style={{
+          boxShadow: `inset 0 0 0 1px ${entry.glow}66, 0 0 24px ${entry.glow}33`,
+        }}
+      />
+      <motion.span
+        className="mt-0.5 flex h-7 w-7 flex-none items-center justify-center rounded-full"
+        style={{ background: `${entry.glow}22`, boxShadow: `0 0 14px ${entry.glow}55` }}
+        whileHover={{ rotate: 12, scale: 1.15 }}
+        transition={{ type: "spring", stiffness: 300, damping: 15 }}
+      >
+        <Flame className="h-3.5 w-3.5" style={{ color: entry.glow }} />
+      </motion.span>
+      <span className="text-base font-light leading-relaxed text-slate-200/90">{text}</span>
+    </motion.li>
   )
 }
 
@@ -441,8 +608,15 @@ function YearScreen({
         variants={staggerContainer}
         initial="initial"
         animate="animate"
-        className="relative flex max-w-2xl flex-col items-center text-center"
+        className="relative flex max-w-2xl flex-col items-center rounded-[2rem] border border-white/10 bg-white/[0.03] px-6 py-10 text-center shadow-2xl backdrop-blur-2xl sm:px-12"
       >
+        {/* soft inner card glow tinted to the year */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-[2rem]"
+          style={{ boxShadow: `inset 0 1px 40px ${entry.glow}12` }}
+        />
+
         <motion.div variants={staggerItem} className="relative mb-6">
           <motion.div
             className="absolute inset-0 rounded-full"
@@ -450,12 +624,14 @@ function YearScreen({
             animate={{ scale: [1, 1.35, 1] }}
             transition={{ duration: 3.5, repeat: Number.POSITIVE_INFINITY }}
           />
-          <div
+          <motion.div
             className="relative flex h-20 w-20 items-center justify-center rounded-full border"
             style={{ borderColor: `${entry.glow}55`, background: `${entry.glow}14` }}
+            animate={{ y: [0, -6, 0] }}
+            transition={{ duration: 4, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
           >
             <Icon className="h-9 w-9" style={{ color: entry.glow }} strokeWidth={1.4} />
-          </div>
+          </motion.div>
         </motion.div>
 
         <motion.p
@@ -476,32 +652,21 @@ function YearScreen({
 
         <motion.ul variants={staggerContainer} className="mt-10 flex w-full flex-col gap-4">
           {entry.milestones.map((m, i) => (
-            <motion.li
-              key={i}
-              variants={staggerItem}
-              className="group flex items-start gap-4 rounded-2xl border border-white/5 bg-white/[0.02] px-6 py-4 text-left backdrop-blur-sm transition-colors hover:border-white/10 hover:bg-white/[0.04]"
-            >
-              <span
-                className="mt-1 flex h-6 w-6 flex-none items-center justify-center rounded-full"
-                style={{ background: `${entry.glow}22` }}
-              >
-                <Flame className="h-3.5 w-3.5" style={{ color: entry.glow }} />
-              </span>
-              <span className="text-base font-light leading-relaxed text-slate-200/90">{m}</span>
-            </motion.li>
+            <MilestoneCard key={i} text={m} entry={entry} />
           ))}
         </motion.ul>
       </motion.div>
 
       {/* Controls */}
       <motion.div variants={staggerItem} initial="initial" animate="animate" className="relative mt-12 flex items-center gap-6">
-        <button
+        <MagneticButton
           onClick={onPrev}
-          className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 text-slate-300 transition-colors hover:border-white/25 hover:text-white"
-          aria-label="Previous"
+          ariaLabel="Previous"
+          strength={0.5}
+          className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 text-slate-300 backdrop-blur-md transition-colors hover:border-white/30 hover:text-white"
         >
           <ArrowLeft className="h-5 w-5" />
-        </button>
+        </MagneticButton>
 
         <div className="flex items-center gap-2" aria-hidden>
           {Array.from({ length: total }).map((_, i) => (
@@ -511,22 +676,63 @@ function YearScreen({
               animate={{
                 width: i === index ? 28 : 8,
                 backgroundColor: i === index ? entry.glow : "rgba(255,255,255,0.2)",
+                boxShadow: i === index ? `0 0 12px ${entry.glow}` : "0 0 0px transparent",
               }}
               transition={{ duration: 0.4 }}
             />
           ))}
         </div>
 
-        <button
+        <MagneticButton
           onClick={onNext}
-          className="group flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium text-rose-50 transition-transform hover:scale-105"
-          style={{ background: `${entry.glow}22`, border: `1px solid ${entry.glow}55` }}
+          ariaLabel={index === total - 1 ? "The Final Chapter" : "Continue"}
+          className="group relative flex items-center gap-2 overflow-hidden rounded-full px-6 py-3 text-sm font-medium text-rose-50 backdrop-blur-md"
         >
-          {index === total - 1 ? "The Final Chapter" : "Continue"}
-          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-        </button>
+          <span
+            aria-hidden
+            className="absolute inset-0 rounded-full"
+            style={{ background: `${entry.glow}22`, border: `1px solid ${entry.glow}66`, boxShadow: `0 0 22px ${entry.glow}44` }}
+          />
+          <span className="relative flex items-center gap-2">
+            {index === total - 1 ? "The Final Chapter" : "Continue"}
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </span>
+        </MagneticButton>
       </motion.div>
     </motion.section>
+  )
+}
+
+/* Word-by-word reveal used in the finale letter */
+function RevealLine({ line, className, delay }: { line: string; className: string; delay: number }) {
+  const words = line.split(" ")
+  return (
+    <motion.p
+      className={className}
+      variants={{
+        initial: {},
+        animate: { transition: { staggerChildren: 0.045, delayChildren: delay } },
+      }}
+    >
+      {words.map((word, i) => (
+        <motion.span
+          key={i}
+          className="inline-block whitespace-pre"
+          variants={{
+            initial: { opacity: 0, y: 14, filter: "blur(6px)" },
+            animate: {
+              opacity: 1,
+              y: 0,
+              filter: "blur(0px)",
+              transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] },
+            },
+          }}
+        >
+          {word}
+          {i < words.length - 1 ? "\u00A0" : ""}
+        </motion.span>
+      ))}
+    </motion.p>
   )
 }
 
@@ -552,9 +758,13 @@ function FinaleScreen({ onRestart }: { onRestart: () => void }) {
           animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 4, repeat: Number.POSITIVE_INFINITY }}
         />
-        <div className="relative flex h-24 w-24 items-center justify-center rounded-full border border-amber-300/40 bg-amber-400/10">
+        <motion.div
+          className="relative flex h-24 w-24 items-center justify-center rounded-full border border-amber-300/40 bg-amber-400/10 backdrop-blur-md"
+          animate={{ y: [0, -8, 0] }}
+          transition={{ duration: 5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+        >
           <Moon className="h-10 w-10 text-amber-200" strokeWidth={1.2} />
-        </div>
+        </motion.div>
       </motion.div>
 
       <motion.p
@@ -576,63 +786,54 @@ function FinaleScreen({ onRestart }: { onRestart: () => void }) {
       </motion.h2>
 
       <motion.div
-        variants={{ animate: { transition: { staggerChildren: 0.55, delayChildren: 0.8 } } }}
+        variants={{ animate: { transition: { staggerChildren: 0.9, delayChildren: 0.8 } } }}
         initial="initial"
         animate="animate"
-        className="relative max-w-2xl"
+        className="relative max-w-2xl rounded-[2rem] border border-white/10 bg-white/[0.02] px-8 py-12 backdrop-blur-2xl sm:px-14"
       >
-        <div
+        {/* romantic ambient glow around the letter card */}
+        <motion.div
           aria-hidden
-          className="pointer-events-none absolute -inset-8 -z-10 rounded-[2.5rem]"
-          style={{ background: "radial-gradient(ellipse at center, rgba(244,63,94,0.12), transparent 70%)", filter: "blur(30px)" }}
+          className="pointer-events-none absolute -inset-10 -z-10 rounded-[3rem]"
+          style={{ background: "radial-gradient(ellipse at center, rgba(244,63,94,0.16), rgba(251,191,36,0.08) 45%, transparent 72%)", filter: "blur(40px)" }}
+          animate={{ opacity: [0.6, 1, 0.6], scale: [1, 1.04, 1] }}
+          transition={{ duration: 8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
         />
         {LETTER.map((line, i) => {
           const isFirst = i === 0
           const isSignature = line.startsWith("—")
-          return (
-            <motion.p
-              key={i}
-              variants={{
-                initial: { opacity: 0, y: 26, filter: "blur(8px)" },
-                animate: {
-                  opacity: 1,
-                  y: 0,
-                  filter: "blur(0px)",
-                  transition: { duration: 1.4, ease: [0.22, 1, 0.36, 1] },
-                },
-              }}
-              className={
-                isFirst
-                  ? "mb-6 font-serif text-2xl font-light text-rose-100"
-                  : isSignature
-                    ? "mt-8 text-right font-serif text-xl font-light italic text-amber-200/90"
-                    : "mb-6 text-lg font-light leading-loose text-slate-200/90 text-pretty"
-              }
-            >
-              {line}
-            </motion.p>
-          )
+          const className = isFirst
+            ? "mb-6 font-serif text-2xl font-light text-rose-100"
+            : isSignature
+              ? "mt-8 text-right font-serif text-xl font-light italic text-amber-200/90"
+              : "mb-6 text-lg font-light leading-loose text-slate-200/90 text-pretty"
+          return <RevealLine key={i} line={line} className={className} delay={0} />
         })}
       </motion.div>
 
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 1.5, delay: 4 }}
+        transition={{ duration: 1.5, delay: 6 }}
         className="mt-16 flex flex-col items-center gap-6"
       >
         <div className="flex items-center gap-3 text-rose-300/80">
-          <Heart className="h-5 w-5" fill="currentColor" />
+          <motion.span animate={{ scale: [1, 1.25, 1] }} transition={{ duration: 1.6, repeat: Number.POSITIVE_INFINITY }}>
+            <Heart className="h-5 w-5" fill="currentColor" />
+          </motion.span>
           <span className="font-serif text-lg italic">Happy 5th Anniversary</span>
-          <Heart className="h-5 w-5" fill="currentColor" />
+          <motion.span animate={{ scale: [1, 1.25, 1] }} transition={{ duration: 1.6, repeat: Number.POSITIVE_INFINITY, delay: 0.8 }}>
+            <Heart className="h-5 w-5" fill="currentColor" />
+          </motion.span>
         </div>
-        <button
+        <MagneticButton
           onClick={onRestart}
-          className="inline-flex items-center gap-2 rounded-full border border-white/10 px-6 py-3 text-sm font-light text-slate-300 transition-colors hover:border-rose-300/40 hover:text-rose-100"
+          ariaLabel="Relive our journey"
+          className="inline-flex items-center gap-2 rounded-full border border-white/10 px-6 py-3 text-sm font-light text-slate-300 backdrop-blur-md transition-colors hover:border-rose-300/50 hover:text-rose-100"
         >
           <Sparkles className="h-4 w-4" />
           Relive our journey
-        </button>
+        </MagneticButton>
       </motion.div>
     </motion.section>
   )
@@ -649,6 +850,8 @@ export default function AnniversaryJourney() {
 
   const currentGlow =
     stage.screen === "year" ? JOURNEY[stage.index].glow : stage.screen === "finale" ? "#fbbf24" : "#f43f5e"
+  const currentGlow2 =
+    stage.screen === "year" ? JOURNEY[stage.index].glow2 : stage.screen === "finale" ? "#f43f5e" : "#fb7185"
 
   const goNext = useCallback(() => {
     setStage((s) => {
@@ -669,19 +872,19 @@ export default function AnniversaryJourney() {
   }, [])
 
   return (
-    <main className="relative min-h-screen w-full overflow-hidden bg-[#0a0a0f] font-sans text-white antialiased">
+    <main className="relative min-h-screen w-full overflow-hidden bg-[#08080d] font-sans text-white antialiased">
       {/* Base vignette */}
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 z-0"
         style={{
           background:
-            "radial-gradient(ellipse at 50% 0%, rgba(30,15,25,0.9) 0%, #0a0a0f 55%), radial-gradient(ellipse at 80% 90%, rgba(40,20,10,0.6), transparent 60%)",
+            "radial-gradient(ellipse at 50% 0%, rgba(30,15,25,0.9) 0%, #08080d 55%), radial-gradient(ellipse at 80% 90%, rgba(40,20,10,0.6), transparent 60%)",
         }}
       />
 
-      <AmbientGlow color={currentGlow} />
-      <FloatingEmbers />
+      <AmbientGlow color={currentGlow} color2={currentGlow2} />
+      <FloatingEmbers color={currentGlow2} />
 
       <AnimatePresence mode="wait">
         {stage.screen === "intro" && <IntroScreen key="intro" onStart={() => setStage({ screen: "year", index: 0 })} />}
